@@ -11,7 +11,8 @@ class GroceryList extends StatefulWidget {
 }
 
 class _GroceryListState extends State<GroceryList> {
-  int _selectedIndex = 0;
+  int _currentIndex = 0;
+  String _searchQuery = '';
 
   void onCreate() async {
     Grocery? newGrocery = await Navigator.push<Grocery>(
@@ -26,50 +27,65 @@ class _GroceryListState extends State<GroceryList> {
   }
 
   List<Grocery> _getFilteredItems() {
+    if (_searchQuery.isEmpty) {
+      return dummyGroceryItems
+          .where((item) => item.name.toLowerCase().startsWith('b'))
+          .toList();
+    }
     return dummyGroceryItems
-        .where((item) => item.name.toLowerCase().startsWith('b'))
+        .where(
+          (item) =>
+              item.name.toLowerCase().startsWith(_searchQuery.toLowerCase()),
+        )
         .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    // CHANGED: Build content based on selected tab
-    Widget content;
-
-    if (_selectedIndex == 0) {
-      if (dummyGroceryItems.isEmpty) {
-        content = const Center(child: Text('no item add yet'));
-      } else {
-        content = ListView.builder(
-          itemCount: dummyGroceryItems.length,
-          itemBuilder: (context, index) =>
-              GroceryTile(grocery: dummyGroceryItems[index]),
-        );
-      }
-    } else {
-      List<Grocery> filteredItems = _getFilteredItems();
-      if (filteredItems.isEmpty) {
-        content = const Center(child: Text('no item start with b'));
-      } else {
-        content = ListView.builder(
-          itemCount: filteredItems.length,
-          itemBuilder: (context, index) =>
-              GroceryTile(grocery: filteredItems[index]),
-        );
-      }
-    }
+    final groceryListView = dummyGroceryItems.isEmpty
+        ? const Center(child: Text('No items added yet.'))
+        : ListView.builder(
+            itemCount: dummyGroceryItems.length,
+            itemBuilder: (context, index) =>
+                GroceryTile(grocery: dummyGroceryItems[index]),
+          );
+    final searchView = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            decoration: InputDecoration(
+              labelText: 'Search groceries',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+        ),
+        Expanded(child: _buildFilteredList()),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Groceries'),
         actions: [IconButton(onPressed: onCreate, icon: const Icon(Icons.add))],
       ),
-      body: content,
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [groceryListView, searchView],
+      ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
-            _selectedIndex = index;
+            _currentIndex = index;
           });
         },
         items: const [
@@ -80,6 +96,26 @@ class _GroceryListState extends State<GroceryList> {
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilteredList() {
+    final filteredItems = _getFilteredItems();
+
+    if (filteredItems.isEmpty) {
+      return Center(
+        child: Text(
+          _searchQuery.isEmpty
+              ? 'No items starting with "B".'
+              : 'No items found for "$_searchQuery"',
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: filteredItems.length,
+      itemBuilder: (context, index) =>
+          GroceryTile(grocery: filteredItems[index]),
     );
   }
 }
